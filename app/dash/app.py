@@ -3,8 +3,8 @@ import pandas as pd
 import folium
 import base64
 from dash.tasks import state_coordinates, filter_data
-from dash.tasks.generate_report import generate_report  # Import the report generation function
-from dotenv import load_dotenv  # Import the dotenv
+from dash.tasks.generate_report import generate_report 
+from dotenv import load_dotenv 
 import os
 
 load_dotenv()
@@ -21,7 +21,6 @@ def dashboard():
     data = load_data()
 
     prompt = request.args.get('prompt')
-    # prompt = 'quero dados do mês atual'
     print(f"Prompt for filtering: {prompt}")
     if prompt:
         api_key = os.getenv("GROQ_API_KEY")
@@ -29,34 +28,30 @@ def dashboard():
         time_filter = filter_data.interpret_time_filter(prompt, api_key)
         
         if time_filter:
-            # Apply the interpreted time filter to the data
+
             data = filter_data.filter_data_by_time(data, time_filter)
             print(f"Data filtered by time: {data.head()}")
         else:
             print("Failed to interpret time filter; using full data set.")
 
-    # # Generate the report text dynamically
     api_key = os.getenv("GROQ_API_KEY")
     report_text = generate_report(data, api_key)
 
-    # Process data for the main charts
     uf_counts = data['SG_UF_NOT'].value_counts().sort_index().to_dict()
     sexo_counts = data['CS_SEXO'].value_counts().to_dict()
     evolucao_data = data[data['evolucao'].isin(['cura', 'obito'])]
     evolucao_counts = evolucao_data.groupby(['DT_NOTIFIC', 'evolucao']).size().unstack(fill_value=0).to_dict(orient='list')
     dates_evolucao = evolucao_data['DT_NOTIFIC'].sort_values().unique().tolist()
 
-    # Generate the Folium map with charts in popups
     folium_map = folium.Map(location=[-25.7797, -40.9297], zoom_start=5)
     for uf, group in data.groupby('SG_UF_NOT'):
         location = state_coordinates.get(uf)
         if location:
-            # Filter data for influenza cases for the current state
+        
             influenza_data = group[group['classi_fin'] == 'influenza']
             influenza_counts = influenza_data.groupby('DT_NOTIFIC').size().tolist()
             dates = influenza_data['DT_NOTIFIC'].unique().tolist()
 
-            # Create the HTML content with Chart.js code as a data URI
             chart_html = f"""
             <!DOCTYPE html>
             <html>
@@ -107,11 +102,9 @@ def dashboard():
             </html>
             """
             
-            # Convert the HTML to a base64 data URI
             encoded_html = base64.b64encode(chart_html.encode('utf-8')).decode('utf-8')
             data_uri = f"data:text/html;base64,{encoded_html}"
 
-            # Add the chart to the popup as an iframe
             iframe = folium.IFrame(f'<iframe src="{data_uri}" width="400" height="350"></iframe>', width=400, height=350)
             popup = folium.Popup(iframe, max_width=500)
             marker = folium.Marker(location=location, popup=popup)
